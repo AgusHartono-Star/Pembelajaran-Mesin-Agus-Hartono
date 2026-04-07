@@ -1,0 +1,9 @@
+# Mengabaikan file sementara Streamlit & Flask
+last_prediction.json
+temp_prediction.json
+
+# Mengabaikan folder environment & cache Python
+__pycache__/
+venv/
+env/
+.DS_Store

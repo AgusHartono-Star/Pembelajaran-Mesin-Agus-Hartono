@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Koleksi Dataset HAR</title>
+    <link rel="stylesheet" href="/assets/style.css">
+    <style>
+        /* Desain Kunci Layar Palsu */
+        #pocketLock {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.95); color: white; z-index: 9999;
+            flex-direction: column; justify-content: center; align-items: center;
+        }
+        #pocketLock h1 { font-size: 50px; margin: 0; }
+        #pocketLock p { font-size: 18px; color: #aaa; }
+    </style>
+</head>
+<body>
+
+<div id="pocketLock" ondblclick="unlockScreen()">
+    <h1>🔒</h1>
+    <p>Merekam Data...</p>
+    <p style="color: #eab308; font-size: 14px;">(Ketuk Layar 2x Cepat Untuk Membuka)</p>
+</div>
+
+<div class="container">
+    <h2>📱 Koleksi Dataset HAR</h2>
+
+    <select id="activityLabel" class="dropdown">
+        <option value="Walking">Walking (Berjalan)</option>
+        <option value="Running">Running (Berlari)</option>
+        <option value="Sitting">Sitting (Duduk)</option>
+        <option value="Standing">Standing (Berdiri)</option>
+        <option value="Laying">Laying (Berbaring)</option>
+    </select>
+
+    <div style="text-align: left; margin-bottom: 15px;">
+        <label style="color: #94a3b8; font-size: 14px; font-weight: bold;">Durasi Rekam (Detik):</label>
+        <input type="number" id="duration" class="dropdown" value="180" style="margin-top: 5px;">
+    </div>
+
+    <div id="status" class="status inactive">⛔ Menunggu...</div>
+
+    <div class="data-box" id="output">
+        <div style="display: flex; justify-content: space-between; font-size: 16px; margin-bottom: 10px; color: #94a3b8;">
+            <span>Baris: <b id="count" class="active">0</b></span>
+            <span>Waktu: <b id="timer" class="warning">00:00</b></span>
+        </div>
+        <hr style="border: 0.5px solid #334155; margin-bottom: 10px;">
+        X: <span id="valX">0.00</span><br>
+        Y: <span id="valY">0.00</span><br>
+        Z: <span id="valZ">0.00</span>
+    </div>
+
+    <button id="startBtn" class="start" onclick="startSensor()">▶ Start Rekam</button>
+    <div style="display: flex; justify-content: space-between;">
+        <button id="stopBtn" class="stop" onclick="stopSensor()" disabled style="opacity: 0.5; width: 48%;">⏹ Kirim</button>
+        <button id="cancelBtn" class="stop" onclick="cancelSensor()" disabled style="opacity: 0.5; width: 48%; background: #64748b;">🗑️ Batal</button>
+    </div>
+    
+    <button id="downloadBtn" class="download" onclick="downloadCSV()" style="display:none;">⬇ Download Manual</button>
+</div>
+
+<script src="/assets/main.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,83 @@
+body {
+    font-family: Arial, sans-serif;
+    background: #0f172a;
+    color: white;
+    text-align: center;
+    padding: 30px;
+}
+
+.container {
+    max-width: 400px;
+    margin: auto;
+    background: #1e293b;
+    padding: 25px;
+    border-radius: 20px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+}
+
+h2 {
+    margin-bottom: 15px;
+}
+
+.status {
+    margin: 10px 0;
+    font-weight: bold;
+    font-size: 18px;
+}
+
+.active { color: #22c55e; }
+.inactive { color: #ef4444; }
+.warning { color: #eab308; } /* Warna kuning saat mengirim data */
+
+.data-box {
+    background: #020617;
+    padding: 20px;
+    border-radius: 15px;
+    margin: 15px 0;
+    font-size: 20px;
+    text-align: left;
+}
+
+/* Styling tambahan untuk Dropdown */
+.dropdown {
+    width: 95%;
+    padding: 12px;
+    font-size: 16px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    background: #334155;
+    color: white;
+    border: none;
+    outline: none;
+}
+
+button {
+    padding: 12px 20px;
+    margin: 5px;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    cursor: pointer;
+    width: 95%;
+    transition: 0.2s;
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+.start {
+    background: #22c55e;
+    color: white;
+}
+
+.stop {
+    background: #ef4444;
+    color: white;
+}
+
+.download {
+    background: #3b82f6;
+    color: white;
+    margin-top: 10px;
+}
