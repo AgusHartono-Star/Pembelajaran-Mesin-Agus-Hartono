@@ -1,6 +1,53 @@
 let isRunning = false;
 let buffer = [];
 
+// ==========================================
+// FITUR WAKE LOCK & SCREEN LOCK
+// ==========================================
+let wakeLock = null;
+let lastTapTime = 0;
+const lockOverlay = document.getElementById('lockOverlay');
+
+// Mencegah layar mati
+async function requestWakeLock() {
+    try {
+        if ('wakeLock' in navigator) {
+            wakeLock = await navigator.wakeLock.request('screen');
+            console.log('Wake Lock Aktif: Layar tidak akan mati.');
+        }
+    } catch (err) {
+        console.error(`Wake Lock gagal: ${err.message}`);
+    }
+}
+
+// Melepas pencegah layar mati
+function releaseWakeLock() {
+    if (wakeLock !== null) {
+        wakeLock.release().then(() => { wakeLock = null; });
+    }
+}
+
+// Logika Buka Kunci dengan Double Tap
+lockOverlay.addEventListener('touchend', function(e) {
+    let currentTime = new Date().getTime();
+    let tapLength = currentTime - lastTapTime;
+    
+    // Jika jarak antar tap kurang dari 500ms (Double Tap)
+    if (tapLength < 500 && tapLength > 0) {
+        lockOverlay.style.display = 'none'; // Sembunyikan layar kunci
+        e.preventDefault(); // Cegah klik tembus ke bawah
+    }
+    lastTapTime = currentTime;
+});
+
+// Fallback jika ditest pakai mouse di PC
+lockOverlay.addEventListener('dblclick', function() {
+    lockOverlay.style.display = 'none';
+});
+
+// ==========================================
+// LOGIKA SENSOR UTAMA
+// ==========================================
 function startSensor() {
     if (typeof DeviceMotionEvent.requestPermission === 'function') {
         DeviceMotionEvent.requestPermission()
@@ -15,6 +62,7 @@ function mulai() {
     isRunning = true;
     buffer = [];
     
+    // Aktifkan UI State
     document.getElementById("status").innerHTML = "🟢 SENSOR ON (Mendeteksi...)";
     document.getElementById("status").className = "status active"; 
     document.getElementById("startBtn").disabled = true;
@@ -22,12 +70,17 @@ function mulai() {
     document.getElementById("stopBtn").disabled = false;
     document.getElementById("stopBtn").style.opacity = "1";
     document.getElementById("hasil_prediksi").innerText = "Mengumpulkan data...";
+
+    // AKTIFKAN FITUR PENGAMAN SAAT MASUK SAKU
+    requestWakeLock();
+    lockOverlay.style.display = 'flex'; // Tampilkan layar kunci
 }
 
 function stopSensor() {
     isRunning = false;
     buffer = [];
     
+    // Matikan UI State
     document.getElementById("status").innerHTML = "🔴 SENSOR OFF";
     document.getElementById("status").className = "status inactive";
     document.getElementById("startBtn").disabled = false;
@@ -38,13 +91,17 @@ function stopSensor() {
     document.getElementById("hasil_prediksi").innerText = "-";
     document.getElementById("hasil_conf").innerText = "-";
     document.getElementById("count").innerHTML = "0";
+
+    // MATIKAN PENCEGAH LAYAR MATI
+    releaseWakeLock();
 }
 
 window.addEventListener("devicemotion", function(event) {
     if (!isRunning) return;
 
-    // 1. KEMBALIKAN KE SENSOR TANPA GRAVITASI (Sesuai Dataset Training Anda)
-    let acc = event.acceleration || event.accelerationIncludingGravity;
+    // 1. PRIORITASKAN SENSOR DENGAN GRAVITASI
+    let acc = event.accelerationIncludingGravity || event.acceleration;
+    
     if (!acc || acc.x === null) return;
 
     buffer.push({ x: acc.x, y: acc.y, z: acc.z });
@@ -58,10 +115,7 @@ window.addEventListener("devicemotion", function(event) {
     if (buffer.length >= 120) {
         sendToPredict([...buffer]); 
         
-        // 2. UBAH OVERLAP MENJADI 50% (Atau buang bersih)
-        // Jika pakai buffer.slice(60), memori hentakan hilang dalam 1 detik.
-        // Jika pakai buffer = [], memori hentakan langsung hilang (seperti app lama).
-        // Mari kita gunakan slice(60) agar masih ada transisi halus namun tidak nyangkut lama.
+        // Transisi Overlap 50%
         buffer = buffer.slice(60); 
     }
 });

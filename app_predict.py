@@ -19,9 +19,9 @@ CORS(app)
 try:
     # Mengambil 'otak' AI, Scaler, dan Label Encoder terbaru
     # Pastikan nama filenya sesuai dengan yang kamu download dari Colab!
-    model = joblib.load("model/model_rf_har.pkl")
-    scaler = joblib.load("model/scaler_rf_har.pkl") 
-    encoder = joblib.load("model/label_encoder.pkl")
+    model = joblib.load("model/model_rf_har (2).pkl")
+    scaler = joblib.load("model/scaler_rf_har (2).pkl") 
+    encoder = joblib.load("model/label_encoder (2).pkl")
     print("✅ Berhasil: Model, Scaler, dan Label Encoder dimuat.")
 except Exception as e:
     print(f"❌ Gagal memuat file model: {e}")

@@ -102,7 +102,16 @@ function nonaktifkanTombol() {
 
 window.addEventListener("devicemotion", function(event) {
     if (!isRecording) return;
-    let acc =  event.accelerationIncludingGravity ||event.acceleration;
+    
+    // PRIORITAS UTAMA: Gunakan sensor dengan gravitasi
+    let acc = event.accelerationIncludingGravity;
+    
+    // Jika ternyata browser/HP sama sekali tidak mendukung (isinya null), baru pakai yang murni
+    if (!acc || acc.x === null) {
+        acc = event.acceleration;
+    }
+    
+    // Jika keduanya gagal/null, batalkan perekaman frame ini
     if (!acc || acc.x === null) return;
 
     dataset.push([Date.now(), currentActivity, acc.x.toFixed(4), acc.y.toFixed(4), acc.z.toFixed(4)]);

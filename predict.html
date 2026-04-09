@@ -2,11 +2,38 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AI Sensor Prediksi</title>
     <link rel="stylesheet" href="/assets/style.css">
+    <style>
+        /* CSS Khusus Layar Kunci */
+        #lockOverlay {
+            display: none; /* Sembunyikan dari awal */
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(15, 23, 42, 0.95); /* Gelap transparan */
+            z-index: 9999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #38bdf8;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            user-select: none; /* Cegah teks terblok */
+            -webkit-user-select: none;
+        }
+    </style>
 </head>
 <body>
+
+<div id="lockOverlay">
+    <div style="font-size: 80px; margin-bottom: 20px; text-shadow: 0 0 20px rgba(56, 189, 248, 0.5);">🔒</div>
+    <h2 style="margin: 0; color: #f1f5f9;">Sensor Berjalan</h2>
+    <p style="color: #94a3b8; margin-top: 10px;">Layar Terkunci & Anti-Mati</p>
+    <p style="font-size: 14px; margin-top: 30px; padding: 10px 20px; background: rgba(255,255,255,0.1); border-radius: 20px;">
+        👆 Ketuk Layar 2x (Double Tap) untuk membuka
+    </p>
+</div>
 
 <div class="container">
     <h2>🤖 AI Scanner</h2>
