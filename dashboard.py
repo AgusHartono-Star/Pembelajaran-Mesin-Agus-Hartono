@@ -103,14 +103,31 @@ st.markdown("---")
 # ==========================================
 # MODE 1: REAL-TIME ENGINE (SENSOR HP)
 # ==========================================
-
+# ==========================================
+# MODE 1: REAL-TIME ENGINE (SENSOR HP)
+# ==========================================
 if app_mode == "⚡ Real-Time Sensor":
     import requests
     import time
+    from datetime import datetime
     
-    API_URL = "https://agushartono.pythonanywhere.com/get_live_status"
+    st.header("⚡ Live Activity Detection")
     
-    # Membuat satu kanvas kosong. Kita hanya akan menimpa isi kanvas ini.
+    # 1. INPUT TOKEN (Level Production - Kosong secara default)
+    col_t1, col_t2 = st.columns([3, 1])
+    with col_t1:
+        # User harus mengetik sendiri tokennya saat membuka web
+        user_token = st.text_input("🔑 Masukkan Pairing Token", type="password")
+    
+    # Jika kotak token belum diisi, hentikan web sampai di sini
+    if not user_token:
+        st.warning("⚠️ Silakan masukkan Token Rahasia untuk menyambungkan ke HP-mu.")
+        st.stop() 
+        
+    # 2. URL API DINAMIS (Menyesuaikan token yang diketik)
+    API_URL = f"https://agushartono.pythonanywhere.com/get_live_status?token={user_token}"
+    
+    # 3. KANVAS UNTUK DISPLAY (Anti-Kedip)
     main_display = st.empty()
     
     # Loop ini menggantikan fungsi st.rerun() agar tidak berkedip
@@ -162,12 +179,12 @@ if app_mode == "⚡ Real-Time Sensor":
                     else:
                         # Tampilan saat aplikasi di HP ditekan tombol Berhenti
                         st.markdown(f"**Status:** 🔴 <span class='status-offline'>SENSOR BERHENTI / STANDBY</span>", unsafe_allow_html=True)
-                        st.warning("⚠️ Sensor di HP sedang dimatikan.")
-                        st.info("Tekan 'Mulai Deteksi' di HP-mu untuk melanjutkan aliran data.")
+                        st.warning("⚠️ Sensor di HP sedang dimatikan atau belum mengirim data.")
+                        st.info(f"Pastikan HP-mu mengirim data dengan token: **{user_token}**")
                         
             else:
                 with main_display.container():
-                    st.error("Menunggu server API...")
+                    st.error("Menunggu server API... (Token mungkin salah atau HP belum mengirim data pertama)")
                     
         except requests.exceptions.RequestException as e:
             with main_display.container():
