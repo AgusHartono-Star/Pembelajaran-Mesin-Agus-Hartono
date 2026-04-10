@@ -103,88 +103,78 @@ st.markdown("---")
 # ==========================================
 # MODE 1: REAL-TIME ENGINE (SENSOR HP)
 # ==========================================
-# ==========================================
-# MODE 1: REAL-TIME ENGINE (SENSOR HP)
-# ==========================================
+
 if app_mode == "⚡ Real-Time Sensor":
     import requests
+    import time
     
-    # URL API dari PythonAnywhere milikmu
     API_URL = "https://agushartono.pythonanywhere.com/get_live_status"
     
-    # Membuat wadah (placeholder) agar UI bisa di-refresh tanpa berkedip
-    status_placeholder = st.empty()
-    content_placeholder = st.empty()
+    # Membuat satu kanvas kosong. Kita hanya akan menimpa isi kanvas ini.
+    main_display = st.empty()
     
-    with status_placeholder.container():
-        st.markdown(f"**Status:** 🟡 <span style='color:#facc15; font-weight:bold;'>MENYAMBUNGKAN KE SENSOR...</span>", unsafe_allow_html=True)
-    
-    try:
-        # Meminta data dari server PythonAnywhere
-        response = requests.get(API_URL, timeout=3)
+    # Loop ini menggantikan fungsi st.rerun() agar tidak berkedip
+    while True:
+        try:
+            response = requests.get(API_URL, timeout=3)
+            
+            if response.status_code == 200:
+                data = response.json()
+                current_act = data.get('prediction', 'Unknown')
+                conf_str = data.get('confidence', '0%')
+                data_time = data.get('timestamp', 0)
+                
+                # Logika Sensor Mati: Cek apakah selisih waktu server dan sekarang lebih dari 5 detik
+                is_online = (time.time() - data_time) <= 5
+                
+                # Menimpa tampilan tanpa memuat ulang web
+                with main_display.container():
+                    if is_online:
+                        st.markdown(f"**Status:** <div class='pulse-online'></div> <span style='color:#10b981; font-weight:bold;'>SENSOR ONLINE</span> &nbsp;&nbsp;|&nbsp;&nbsp; **Sync:** {datetime.now().strftime('%H:%M:%S')}", unsafe_allow_html=True)
+                        
+                        if not st.session_state.history or st.session_state.history[0]['Activity'] != current_act:
+                            st.session_state.history.insert(0, {
+                                "Time": datetime.now().strftime("%H:%M:%S"),
+                                "Activity": current_act,
+                                "Confidence": conf_str
+                            })
+                            st.session_state.history = st.session_state.history[:8]
+                            
+                        m1, m2 = st.columns(2)
+                        with m1:
+                            st.metric(label="🎯 ACTIVITY DETECTED", value=current_act)
+                        with m2:
+                            st.metric(label="🤖 AI CONFIDENCE SCORE", value=conf_str)
+                            
+                        try:
+                            conf_val = float(conf_str.replace('%', '')) / 100
+                        except ValueError:
+                            conf_val = 0.0
+                            
+                        st.write("### ⚡ Probability Strength")
+                        st.progress(conf_val)
+
+                        st.write("### 📜 Recent Activity Log")
+                        if st.session_state.history:
+                            df_hist = pd.DataFrame(st.session_state.history)
+                            st.dataframe(df_hist, use_container_width=True, hide_index=True)
+                    
+                    else:
+                        # Tampilan saat aplikasi di HP ditekan tombol Berhenti
+                        st.markdown(f"**Status:** 🔴 <span class='status-offline'>SENSOR BERHENTI / STANDBY</span>", unsafe_allow_html=True)
+                        st.warning("⚠️ Sensor di HP sedang dimatikan.")
+                        st.info("Tekan 'Mulai Deteksi' di HP-mu untuk melanjutkan aliran data.")
+                        
+            else:
+                with main_display.container():
+                    st.error("Menunggu server API...")
+                    
+        except requests.exceptions.RequestException as e:
+            with main_display.container():
+                st.error("Gagal terhubung ke server API.")
         
-        if response.status_code == 200:
-            data = response.json()
-            current_act = data.get('prediction', 'Unknown')
-            conf_str = data.get('confidence', '0%')
-            
-            # Update status jadi hijau (Online)
-            with status_placeholder.container():
-                st.markdown(f"**Status:** <div class='pulse-online'></div> <span style='color:#10b981; font-weight:bold;'>SENSOR ONLINE</span> &nbsp;&nbsp;|&nbsp;&nbsp; **Sync:** {datetime.now().strftime('%H:%M:%S')}", unsafe_allow_html=True)
-            
-            with content_placeholder.container():
-                # Catat ke history jika aktivitas berubah atau history masih kosong
-                if not st.session_state.history or st.session_state.history[0]['Activity'] != current_act:
-                    st.session_state.history.insert(0, {
-                        "Time": datetime.now().strftime("%H:%M:%S"),
-                        "Activity": current_act,
-                        "Confidence": conf_str
-                    })
-                    st.session_state.history = st.session_state.history[:8] # Simpan 8 history terakhir
-                
-                # Tampilkan Angka Besar
-                m1, m2 = st.columns(2)
-                with m1:
-                    st.metric(label="🎯 ACTIVITY DETECTED", value=current_act)
-                with m2:
-                    st.metric(label="🤖 AI CONFIDENCE SCORE", value=conf_str)
-                
-                # Tampilkan Progress Bar
-                try:
-                    conf_val = float(conf_str.replace('%', '')) / 100
-                except ValueError:
-                    conf_val = 0.0
-                    
-                st.write("### ⚡ Probability Strength")
-                st.progress(conf_val)
-
-                # Tampilkan History
-                st.write("### 📜 Recent Activity Log")
-                if st.session_state.history:
-                    df_hist = pd.DataFrame(st.session_state.history)
-                    st.dataframe(df_hist, use_container_width=True, hide_index=True)
-                    
-        else:
-            with status_placeholder.container():
-                st.markdown(f"**Status:** 🔴 <span class='status-offline'>SENSOR OFFLINE</span>", unsafe_allow_html=True)
-            with content_placeholder.container():
-                st.warning("⚠️ Menunggu aliran data sensor dari HP...")
-                st.info("Buka link PythonAnywhere di HP-mu dan tekan 'Mulai Deteksi'.")
-
-    except requests.exceptions.RequestException as e:
-        with status_placeholder.container():
-            st.markdown(f"**Status:** 🔴 <span class='status-offline'>GAGAL TERHUBUNG</span>", unsafe_allow_html=True)
-        with content_placeholder.container():
-            st.error(f"Gagal terhubung ke API: {e}")
-
-    # Rerun otomatis setiap 1.5 detik
-    time.sleep(1.5)
-    try:
-        st.rerun()
-    except AttributeError:
-        st.experimental_rerun()
-
-
+        # Jeda 1 detik, lalu perbarui datanya lagi
+        time.sleep(1)
 # ==========================================
 # MODE 2: UJI DATA MENTAH CSV & FEATURE ENGINEERING
 # ==========================================

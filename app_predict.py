@@ -9,6 +9,7 @@ import json
 import collections
 import statistics
 from statistics import mode
+import time
 
 app = Flask(__name__, static_folder="assets")
 CORS(app)
@@ -115,7 +116,8 @@ def predict():
 
         result = {
             "prediction": f"{nama_aktivitas_stabil} {emoji}",
-            "confidence": f"{confidence:.2f}%"
+            "confidence": f"{confidence:.2f}%",
+            "timestamp": time.time()
         }
         
         # --- OPTIMASI ATOMIC WRITE UNTUK STREAMLIT ---
