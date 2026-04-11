@@ -1,57 +1,44 @@
 import os
-import shutil
+import json
+import time
 import pandas as pd
 import numpy as np
-from flask import Flask, request, jsonify, send_file, send_from_directory
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import joblib
-import json
 import collections
-import statistics
 from statistics import mode
-import time
 
 app = Flask(__name__, static_folder="assets")
 CORS(app)
 
 # ==========================================
-# 1. LOAD MODEL & UTILITIES
+# 1. LOAD MODEL (VERSI ABSOLUTE PATH)
 # ==========================================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+MODEL_PATH = os.path.join(BASE_DIR, "model", "model_rf_har (1).pkl")
+SCALER_PATH = os.path.join(BASE_DIR, "model", "scaler_rf_har.pkl")
+ENCODER_PATH = os.path.join(BASE_DIR, "model", "label_encoder.pkl")
+
 try:
-    # Mengambil 'otak' AI, Scaler, dan Label Encoder terbaru
-    # Pastikan nama filenya sesuai dengan yang kamu download dari Colab!
-    model = joblib.load("model/model_rf_har (2).pkl")
-    scaler = joblib.load("model/scaler_rf_har (2).pkl") 
-    encoder = joblib.load("model/label_encoder (2).pkl")
-    print("✅ Berhasil: Model, Scaler, dan Label Encoder dimuat.")
+    model = joblib.load(MODEL_PATH)
+    scaler = joblib.load(SCALER_PATH)
+    encoder = joblib.load(ENCODER_PATH)
+    print("✅ Model RF Ready")
 except Exception as e:
-    print(f"❌ Gagal memuat file model: {e}")
-    print("⚠️ Pastikan file .pkl sudah ditaruh di dalam folder 'model/'")
+    print(f"❌ Load Error: {e}")
+    model, scaler, encoder = None, None, None
 
-# Memori untuk menyimpan 5 prediksi terakhir
+# ... (lanjutkan dengan sisa kodenya, tidak perlu diubah) ...
+
 prediction_buffer = collections.deque(maxlen=5)
-# ==========================================
-# 2. ROUTES (NAVIGASI)
-# ==========================================
-@app.route("/")
-def home():
-    return send_file("predict.html")
 
-@app.route("/assets/<path:filename>")
-def serve_assets(filename):
-    return send_from_directory("assets", filename)
-
-# ==========================================
-# 3. FEATURE ENGINEERING (LOGIKA AI)
-# ==========================================
 def extract_features(data):
-    # Mengubah data JSON dari HP menjadi Array Numpy
     x = np.array([d["x"] for d in data])
     y = np.array([d["y"] for d in data])
     z = np.array([d["z"] for d in data])
     mag = np.sqrt(x**2 + y**2 + z**2)
-
-    # Ekstraksi 25 Fitur Statistik (Sama persis dengan saat Training di Colab)
     features = {
         'mean_x': np.mean(x), 'mean_y': np.mean(y), 'mean_z': np.mean(z),
         'std_x': np.std(x), 'std_y': np.std(y), 'std_z': np.std(z),
@@ -64,82 +51,60 @@ def extract_features(data):
         'iqr_z': np.percentile(z, 75) - np.percentile(z, 25),
         'mean_mag': np.mean(mag), 'std_mag': np.std(mag), 'max_mag': np.max(mag), 'min_mag': np.min(mag)
     }
-    
-    # Membuat DataFrame agar bisa diproses oleh StandardScaler dan Model
-    df_feat = pd.DataFrame([features])
-    return df_feat
+    return pd.DataFrame([features])
 
-# ==========================================
-# 4. PREDICT ENDPOINT (MESIN PREDIKSI)
-# ==========================================
+@app.route("/")
+def home():
+    return send_file("predict.html")
+
 @app.route("/predict", methods=["POST"])
 def predict():
+    if model is None:
+        return jsonify({"error": "Model Server Sedang Rusak"}), 500
     try:
-        # Terima data sensor dari HP
         data = request.get_json()
-        if not data or len(data) < 120:
-            return jsonify({"error": "Data kurang dari 120 baris"}), 400
+        token = data.get("token", "default")
+        sensor_data = data.get("sensor_data", [])
 
-        # Tahap 1: Ekstrak Fitur
-        x_features = extract_features(data)
-        
-        # Tahap 2: Standardisasi (Scaling)
-        x_scaled = scaler.transform(x_features)
-        
-       # Tahap 3: Prediksi Kelas
-        pred_idx = model.predict(x_scaled)[0]
-        nama_aktivitas_mentah = encoder.inverse_transform([pred_idx])[0]
-        
-        # --- FILTER STABILIZER (MAJORITY VOTING) ---
-        # Masukkan tebakan mentah ke dalam memori
-        prediction_buffer.append(nama_aktivitas_mentah)
-        
-        # Ambil suara terbanyak dari 5 tebakan terakhir
+        if len(sensor_data) < 120:
+            return jsonify({"error": "Waiting for data..."}), 400
+
+        feat = extract_features(sensor_data)
+        scaled = scaler.transform(feat)
+        pred_idx = model.predict(scaled)[0]
+        label = encoder.inverse_transform([pred_idx])[0]
+
+        prediction_buffer.append(label)
         try:
-            nama_aktivitas_stabil = mode(prediction_buffer)
-        except statistics.StatisticsError:
-            # Jika suara seri (jarang terjadi), ambil tebakan terbaru
-            nama_aktivitas_stabil = nama_aktivitas_mentah
+            final_label = mode(prediction_buffer)
+        except:
+            final_label = label
 
-        # Tahap 4: Hitung Keyakinan (Confidence)
-        if hasattr(model, "predict_proba"):
-            confidence = float(np.max(model.predict_proba(x_scaled)[0])) * 100
-        else:
-            confidence = 100.0
-
-        # Hanya beri keyakinan tinggi jika AI stabil
-        if nama_aktivitas_stabil != nama_aktivitas_mentah:
-            confidence = confidence * 0.5 # Turunkan skor jika masih labil
-
-        emoji_map = {"Walking": "🚶", "Running": "🏃‍♂️", "Sitting": "🪑", "Standing": "🧍", "Laying": "🛏️"}
-        emoji = emoji_map.get(nama_aktivitas_stabil, "🤖")
+        conf = float(np.max(model.predict_proba(scaled)[0])) * 100
+        emoji = {"Walking":"🚶","Running":"🏃‍♂️","Sitting":"🪑","Standing":"🧍","Laying":"🛏️"}.get(final_label, "🤖")
 
         result = {
-            "prediction": f"{nama_aktivitas_stabil} {emoji}",
-            "confidence": f"{confidence:.2f}%",
+            "prediction": f"{final_label} {emoji}",
+            "confidence": f"{conf:.2f}%",
             "timestamp": time.time()
         }
-        
-        # --- OPTIMASI ATOMIC WRITE UNTUK STREAMLIT ---
-        # Menulis ke file sementara (temp), lalu di-replace agar Streamlit tidak crash
-        temp_file = "temp_prediction.json"
-        final_file = "last_prediction.json"
-        
-        with open(temp_file, "w") as f:
-            json.dump(result, f)
-            
-        shutil.move(temp_file, final_file) 
-        
-        print(f"🔥 AI Mendeteksi: {result['prediction']} ({result['confidence']})")
-        
-        return jsonify(result)
 
+        path = os.path.join(os.path.dirname(__file__), f"last_{token}.json")
+        with open(path, "w") as f:
+            json.dump(result, f)
+
+        return jsonify(result)
     except Exception as e:
-        print(f"❌ Error Server: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route("/get_live_status")
+def get_live_status():
+    token = request.args.get('token')
+    path = os.path.join(os.path.dirname(__file__), f"last_{token}.json")
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            return jsonify(json.load(f)), 200
+    return jsonify({"prediction": "Offline", "confidence": "0%"}), 202
 
 if __name__ == "__main__":
-    # Menangkap port dari server Render, jika tidak ada pakai 5000
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=5000)
