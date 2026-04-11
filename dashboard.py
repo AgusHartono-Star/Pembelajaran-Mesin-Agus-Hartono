@@ -133,7 +133,7 @@ if app_mode == "⚡ Real-Time Sensor":
     # Loop ini menggantikan fungsi st.rerun() agar tidak berkedip
     while True:
         try:
-            response = requests.get(API_URL, timeout=3)
+            response = requests.get(API_URL, timeout=10)
             
             if response.status_code == 200:
                 data = response.json()
