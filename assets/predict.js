@@ -1,3 +1,21 @@
+// ==========================================
+// SISTEM AUTO-GENERATE TOKEN
+// ==========================================
+let myToken = localStorage.getItem("har_pairing_token");
+
+if (!myToken) {
+    let randomPin = Math.floor(1000 + Math.random() * 9000);
+    myToken = "HAR-" + randomPin;
+    localStorage.setItem("har_pairing_token", myToken);
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+    let displayEl = document.getElementById("tokenDisplay");
+    if(displayEl) {
+        displayEl.innerText = myToken;
+    }
+});
+
 let isRunning = false;
 let buffer = [];
 
@@ -8,7 +26,6 @@ let wakeLock = null;
 let lastTapTime = 0;
 const lockOverlay = document.getElementById('lockOverlay');
 
-// Mencegah layar mati
 async function requestWakeLock() {
     try {
         if ('wakeLock' in navigator) {
@@ -20,33 +37,31 @@ async function requestWakeLock() {
     }
 }
 
-// Melepas pencegah layar mati
 function releaseWakeLock() {
     if (wakeLock !== null) {
         wakeLock.release().then(() => { wakeLock = null; });
     }
 }
 
-// Logika Buka Kunci dengan Double Tap
-lockOverlay.addEventListener('touchend', function(e) {
-    let currentTime = new Date().getTime();
-    let tapLength = currentTime - lastTapTime;
-    
-    // Jika jarak antar tap kurang dari 500ms (Double Tap)
-    if (tapLength < 500 && tapLength > 0) {
-        lockOverlay.style.display = 'none'; // Sembunyikan layar kunci
-        e.preventDefault(); // Cegah klik tembus ke bawah
-    }
-    lastTapTime = currentTime;
-});
+if(lockOverlay) {
+    lockOverlay.addEventListener('touchend', function(e) {
+        let currentTime = new Date().getTime();
+        let tapLength = currentTime - lastTapTime;
 
-// Fallback jika ditest pakai mouse di PC
-lockOverlay.addEventListener('dblclick', function() {
-    lockOverlay.style.display = 'none';
-});
+        if (tapLength < 500 && tapLength > 0) {
+            lockOverlay.style.display = 'none';
+            e.preventDefault();
+        }
+        lastTapTime = currentTime;
+    });
+
+    lockOverlay.addEventListener('dblclick', function() {
+        lockOverlay.style.display = 'none';
+    });
+}
 
 // ==========================================
-// LOGIKA SENSOR UTAMA
+// LOGIKA SENSOR UTAMA & UI
 // ==========================================
 function startSensor() {
     if (typeof DeviceMotionEvent.requestPermission === 'function') {
@@ -61,47 +76,47 @@ function startSensor() {
 function mulai() {
     isRunning = true;
     buffer = [];
-    
-    // Aktifkan UI State
+
     document.getElementById("status").innerHTML = "🟢 SENSOR ON (Mendeteksi...)";
-    document.getElementById("status").className = "status active"; 
+    document.getElementById("status").className = "status active";
     document.getElementById("startBtn").disabled = true;
     document.getElementById("startBtn").style.opacity = "0.5";
     document.getElementById("stopBtn").disabled = false;
     document.getElementById("stopBtn").style.opacity = "1";
     document.getElementById("hasil_prediksi").innerText = "Mengumpulkan data...";
 
-    // AKTIFKAN FITUR PENGAMAN SAAT MASUK SAKU
     requestWakeLock();
-    lockOverlay.style.display = 'flex'; // Tampilkan layar kunci
+    if(lockOverlay) lockOverlay.style.display = 'flex';
 }
 
 function stopSensor() {
     isRunning = false;
     buffer = [];
-    
-    // Matikan UI State
+
     document.getElementById("status").innerHTML = "🔴 SENSOR OFF";
     document.getElementById("status").className = "status inactive";
     document.getElementById("startBtn").disabled = false;
     document.getElementById("startBtn").style.opacity = "1";
     document.getElementById("stopBtn").disabled = true;
     document.getElementById("stopBtn").style.opacity = "0.5";
-    
+
     document.getElementById("hasil_prediksi").innerText = "-";
     document.getElementById("hasil_conf").innerText = "-";
     document.getElementById("count").innerHTML = "0";
 
-    // MATIKAN PENCEGAH LAYAR MATI
     releaseWakeLock();
 }
+
+// ==========================================
+// PENGIRIMAN DATA DENGAN SISTEM ANTI-SPAM (LAMPU LALU LINTAS)
+// ==========================================
+let isPredicting = false; // Tambahkan variabel ini untuk menahan pengiriman
 
 window.addEventListener("devicemotion", function(event) {
     if (!isRunning) return;
 
-    // 1. PRIORITASKAN SENSOR DENGAN GRAVITASI
     let acc = event.accelerationIncludingGravity || event.acceleration;
-    
+
     if (!acc || acc.x === null) return;
 
     buffer.push({ x: acc.x, y: acc.y, z: acc.z });
@@ -111,27 +126,53 @@ window.addEventListener("devicemotion", function(event) {
     document.getElementById("valZ").innerHTML = acc.z.toFixed(2);
     document.getElementById("count").innerHTML = buffer.length;
 
-    // Jika data sudah 120 baris (~2 detik)
+    // Jika data sudah 120 baris
     if (buffer.length >= 120) {
-        sendToPredict([...buffer]); 
-        
-        // Transisi Overlap 50%
-        buffer = buffer.slice(60); 
+        // HANYA KIRIM JIKA SERVER SEDANG TIDAK SIBUK
+        if (!isPredicting) {
+            sendToPredict([...buffer]);
+        }
+
+        // Tetap potong buffer agar memori HP tidak penuh
+        buffer = buffer.slice(60);
     }
 });
 
 function sendToPredict(data) {
-    fetch("/predict", {
+    isPredicting = true; // Nyalakan Lampu Merah (Kunci pengiriman baru)
+
+    let payload = {
+        "token": myToken,
+        "sensor_data": data
+    };
+
+    fetch("https://agushartono.pythonanywhere.com", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data)
+        body: JSON.stringify(payload)
     })
-    .then(res => res.json())
+    .then(res => {
+        if (!res.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return res.json();
+    })
     .then(res => {
         if(res.prediction) {
             document.getElementById("hasil_prediksi").innerText = res.prediction;
             document.getElementById("hasil_conf").innerText = res.confidence;
+        } else if (res.error) {
+             document.getElementById("hasil_prediksi").innerText = "Error: " + res.error;
         }
     })
-    .catch(err => console.error("Gagal prediksi:", err));
+    .catch(err => {
+        console.error("Gagal prediksi:", err);
+        // Jangan langsung bilang gagal ke user kalau cuma telat, biarkan AI memulihkan diri di siklus berikutnya
+        document.getElementById("hasil_prediksi").innerText = "Menunggu respons server...";
+    })
+    .finally(() => {
+        // INI PALING PENTING: Nyalakan Lampu Hijau kembali (Buka kunci)
+        // Entah berhasil atau gagal, izinkan HP mengirim data lagi.
+        isPredicting = false;
+    });
 }
