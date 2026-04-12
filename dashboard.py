@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import joblib
 from datetime import datetime
+import random  # Ditambahkan untuk token otomatis
 
 # ==========================================
 # 1. KONFIGURASI HALAMAN
@@ -45,12 +46,10 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. FUNGSI FEATURE ENGINEERING (BARU DITAMBAHKAN)
+# 3. FUNGSI FEATURE ENGINEERING
 # ==========================================
 def extract_features(window_data):
     """Mengekstrak 25 fitur statistik dari data mentah X, Y, Z"""
-    # Sesuaikan nama kolom jika data mentahmu berbeda (misal: 'x', 'y', 'z')
-    # Di sini diasumsikan kolom bernama 'acc_x', 'acc_y', 'acc_z'
     x = window_data['acc_x'].values
     y = window_data['acc_y'].values
     z = window_data['acc_z'].values
@@ -99,53 +98,45 @@ else:
     st.markdown("<p style='color:#94a3b8; font-size:18px;'>Raw Data Feature Engineering & Batch Prediction Tool</p>", unsafe_allow_html=True)
 st.markdown("---")
 
-
-# ==========================================
-# MODE 1: REAL-TIME ENGINE (SENSOR HP)
-# ==========================================
 # ==========================================
 # MODE 1: REAL-TIME ENGINE (SENSOR HP)
 # ==========================================
 if app_mode == "⚡ Real-Time Sensor":
     import requests
-    import time
-    from datetime import datetime
     
     st.header("⚡ Live Activity Detection")
     
-    # 1. INPUT TOKEN (Level Production - Kosong secara default)
+    # 1. AUTO GENERATE TOKEN (Ditambahkan di sini)
+    if 'pairing_token' not in st.session_state:
+        st.session_state.pairing_token = str(random.randint(10000, 99999))
+        
     col_t1, col_t2 = st.columns([3, 1])
     with col_t1:
-        # User harus mengetik sendiri tokennya saat membuka web
-        user_token = st.text_input("🔑 Masukkan Pairing Token", type="password")
+        # Token otomatis terisi dan bisa dilihat (tidak lagi pakai type="password")
+        user_token = st.text_input("🔑 Pairing Token (Masukkan angka ini ke aplikasi HP-mu)", value=st.session_state.pairing_token)
     
-    # Jika kotak token belum diisi, hentikan web sampai di sini
     if not user_token:
         st.warning("⚠️ Silakan masukkan Token Rahasia untuk menyambungkan ke HP-mu.")
         st.stop() 
         
-    # 2. URL API DINAMIS (Menyesuaikan token yang diketik)
     API_URL = f"https://agushartono07.pythonanywhere.com/get_live_status?token={user_token}"
     
-    # 3. KANVAS UNTUK DISPLAY (Anti-Kedip)
     main_display = st.empty()
     
-    # Loop ini menggantikan fungsi st.rerun() agar tidak berkedip
     while True:
         try:
             response = requests.get(API_URL, timeout=10)
             
-            if response.status_code == 200:
-                data = response.json()
-                current_act = data.get('prediction', 'Unknown')
-                conf_str = data.get('confidence', '0%')
-                data_time = data.get('timestamp', 0)
-                
-                # Logika Sensor Mati: Cek apakah selisih waktu server dan sekarang lebih dari 5 detik
-                is_online = (time.time() - data_time) <= 5
-                
-                # Menimpa tampilan tanpa memuat ulang web
-                with main_display.container():
+            with main_display.container():
+                # Jika data sukses dikirim dari HP
+                if response.status_code == 200:
+                    data = response.json()
+                    current_act = data.get('prediction', 'Unknown')
+                    conf_str = data.get('confidence', '0%')
+                    data_time = data.get('timestamp', 0)
+                    
+                    is_online = (time.time() - data_time) <= 5
+                    
                     if is_online:
                         st.markdown(f"**Status:** <div class='pulse-online'></div> <span style='color:#10b981; font-weight:bold;'>SENSOR ONLINE</span> &nbsp;&nbsp;|&nbsp;&nbsp; **Sync:** {datetime.now().strftime('%H:%M:%S')}", unsafe_allow_html=True)
                         
@@ -177,21 +168,24 @@ if app_mode == "⚡ Real-Time Sensor":
                             st.dataframe(df_hist, use_container_width=True, hide_index=True)
                     
                     else:
-                        # Tampilan saat aplikasi di HP ditekan tombol Berhenti
                         st.markdown(f"**Status:** 🔴 <span class='status-offline'>SENSOR BERHENTI / STANDBY</span>", unsafe_allow_html=True)
                         st.warning("⚠️ Sensor di HP sedang dimatikan atau belum mengirim data.")
                         st.info(f"Pastikan HP-mu mengirim data dengan token: **{user_token}**")
-                        
-            else:
-                with main_display.container():
+                
+                # Jika PythonAnywhere siap, tapi menunggu HP mengirim data
+                elif response.status_code == 202:
+                    st.markdown(f"**Status:** 🟡 <span style='color:#eab308; font-weight:bold;'>STANDBY MENUNGGU HP</span>", unsafe_allow_html=True)
+                    st.info(f"⏳ Sistem AI sudah siap! Silakan masukkan token **{user_token}** di aplikasi HP-mu dan tekan mulai.")
+                
+                else:
                     st.error("Menunggu server API... (Token mungkin salah atau HP belum mengirim data pertama)")
                     
         except requests.exceptions.RequestException as e:
             with main_display.container():
                 st.error("Gagal terhubung ke server API.")
         
-        # Jeda 1 detik, lalu perbarui datanya lagi
         time.sleep(1)
+
 # ==========================================
 # MODE 2: UJI DATA MENTAH CSV & FEATURE ENGINEERING
 # ==========================================
@@ -200,7 +194,6 @@ elif app_mode == "📁 Uji Data CSV (Mentah)":
     st.write("Upload file CSV berisi data sensor **mentah** (acc_x, acc_y, acc_z). Sistem akan otomatis melakukan *sliding window* dan ekstraksi fitur sebelum diprediksi.")
     
     try:
-        # Pastikan nama model sudah sesuai
         model = joblib.load("model/model_rf_har.pkl")
         scaler = joblib.load("model/scaler_rf_har.pkl")
         encoder = joblib.load("model/label_encoder.pkl")
@@ -215,8 +208,6 @@ elif app_mode == "📁 Uji Data CSV (Mentah)":
         if uploaded_file is not None:
             raw_data = pd.read_csv(uploaded_file)
             
-            # Cek apakah kolom yang dibutuhkan ada. 
-            # Jika dataset mentah dari HP bernama x, y, z, ubah baris di bawah ini.
             required_cols = ['acc_x', 'acc_y', 'acc_z']
             if not all(col in raw_data.columns for col in required_cols):
                 st.error(f"❌ Error: Dataset mentah harus memiliki kolom: {required_cols}. Kolom terdeteksi: {list(raw_data.columns)}")
@@ -225,7 +216,6 @@ elif app_mode == "📁 Uji Data CSV (Mentah)":
                 with st.expander("Lihat Sampel Data Mentah"):
                     st.dataframe(raw_data.head())
 
-                # Meminta user memasukkan window size
                 col_w1, col_w2 = st.columns(2)
                 with col_w1:
                     window_size = st.number_input("Tentukan Ukuran Window (Data per prediksi)", min_value=10, value=50, step=10)
@@ -250,13 +240,10 @@ elif app_mode == "📁 Uji Data CSV (Mentah)":
                                 st.dataframe(df_features.head())
 
                             # 2. PROSES PREDIKSI
-                            # Scaling
                             x_scaled = scaler.transform(df_features)
-                            # Prediksi
                             pred_idx = model.predict(x_scaled)
                             pred_labels = encoder.inverse_transform(pred_idx)
                             
-                            # Buat dataframe untuk hasil akhir
                             df_result = pd.DataFrame({
                                 'Window_Index': range(1, len(pred_labels) + 1),
                                 'PREDIKSI_AI': pred_labels
@@ -270,7 +257,6 @@ elif app_mode == "📁 Uji Data CSV (Mentah)":
                                 activity_counts = df_result['PREDIKSI_AI'].value_counts()
                                 st.bar_chart(activity_counts)
                             
-                            # Tombol Download
                             csv_result = df_result.to_csv(index=False).encode('utf-8')
                             st.download_button(
                                 label="⬇️ Download Hasil Prediksi (CSV)",
