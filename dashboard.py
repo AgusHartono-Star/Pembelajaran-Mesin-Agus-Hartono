@@ -125,7 +125,7 @@ if app_mode == "⚡ Real-Time Sensor":
         st.stop() 
         
     # 2. URL API DINAMIS (Menyesuaikan token yang diketik)
-    API_URL = f"https://agushartono.pythonanywhere.com/get_live_status?token={user_token}"
+    API_URL = f"https://agushartono07.pythonanywhere.com/get_live_status?token={user_token}"
     
     # 3. KANVAS UNTUK DISPLAY (Anti-Kedip)
     main_display = st.empty()
