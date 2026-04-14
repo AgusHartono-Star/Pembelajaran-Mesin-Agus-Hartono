@@ -17,7 +17,7 @@ CORS(app)
 # ==========================================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-MODEL_PATH = os.path.join(BASE_DIR, "model", "model_rf_har (1).pkl")
+MODEL_PATH = os.path.join(BASE_DIR, "model", "model_rf_har (2).pkl")
 SCALER_PATH = os.path.join(BASE_DIR, "model", "scaler_rf_har.pkl")
 ENCODER_PATH = os.path.join(BASE_DIR, "model", "label_encoder.pkl")
 
