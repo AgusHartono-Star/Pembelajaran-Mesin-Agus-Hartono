@@ -119,7 +119,7 @@ if app_mode == "⚡ Real-Time Sensor":
         st.warning("⚠️ Silakan masukkan Token Rahasia untuk menyambungkan ke HP-mu.")
         st.stop() 
         
-    API_URL = f"https://AgusHartono079.pythonanywhere.com/get_live_status?token={user_token}"
+    API_URL = f"https://agushartono.pythonanywhere.com/get_live_status?token={user_token}"
     
     main_display = st.empty()
     
